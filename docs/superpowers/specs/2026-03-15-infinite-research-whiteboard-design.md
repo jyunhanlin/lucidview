@@ -28,7 +28,7 @@ Unlike existing AI chart tools that render a single chart in a fixed `<div>`, Lu
 | State management | Zustand | Cross-chart hover synchronization via shared store |
 | Schema validation | Zod | Native TanStack integration; type inference from schema; LLM output validation |
 | LLM strategy | claude -p (prototype) → Gemini Flash-Lite (dev) → BYOK (production) | Zero cost start; cheapest API for development; user-provided keys for production |
-| Data sources | CoinGecko + DeFiLlama + Beacon Chain | Free tier APIs sufficient for MVP; covers price, TVL, staking, fund flow data |
+| Data sources | CoinGecko + DeFiLlama + beaconcha.in | Free tier APIs sufficient for MVP; covers price, TVL, staking, fund flow data |
 | Database | None (MVP) | localStorage for whiteboard persistence; no user accounts in MVP |
 | Deployment | Vercel | Native TanStack Start support |
 
@@ -57,7 +57,7 @@ Unlike existing AI chart tools that render a single chart in a fixed `<div>`, Lu
 │              ├───────────────────┤                       │
 │              │ analyzePrompt()   │──▶ LLM                │
 │              │ fetchPriceData()  │──▶ CoinGecko          │
-│              │ fetchStakingData()│──▶ Beacon Chain API    │
+│              │ fetchStakingData()│──▶ beaconcha.in API     │
 │              │ fetchFlowData()   │──▶ DeFiLlama          │
 │              └───────────────────┘                       │
 └─────────────────────────────────────────────────────────┘
@@ -82,9 +82,14 @@ AI outputs a declarative JSON schema describing what to render. Frontend handles
 
 ## Board Schema
 
-The core interface between AI and frontend.
+The core interface between AI and frontend. All timestamps use **ISO 8601 date format: `"YYYY-MM-DD"`** (e.g., `"2023-04-12"`). This canonical format applies everywhere: `ConnectionSpec.timestamp`, `SyncStore.hoveredTimestamp`, and `getAnchorForTimestamp()`.
 
 ```typescript
+// LLM response is a discriminated union — either a valid board or a clarification request
+type BoardResponse =
+  | { type: "board"; data: BoardSchema }
+  | { type: "clarification"; message: string }
+
 interface BoardSchema {
   title: string
   charts: ChartSpec[]
@@ -100,23 +105,50 @@ interface ChartSpec {
   dataQuery: DataQuery
 }
 
-interface DataQuery {
-  source: "coingecko" | "defillama" | "beaconchain"
-  endpoint: string
-  params: Record<string, string>
-}
+// Supported data queries — AI must use one of these predefined query types.
+// Server functions validate and map these to actual API calls.
+type DataQuery =
+  | { source: "coingecko"; query: "price_history"; token: string; days: number; vs_currency?: string }
+  | { source: "coingecko"; query: "market_data"; token: string }
+  | { source: "defillama"; query: "protocol_tvl"; protocol: string }
+  | { source: "defillama"; query: "chain_tvl"; chain: string }
+  | { source: "defillama"; query: "protocol_flows"; protocol: string; period?: string }
+  | { source: "beaconchain"; query: "staking_deposits"; days: number }
+  | { source: "beaconchain"; query: "validator_count"; days: number }
+
+// Connection endpoint — time-axis charts use timestamp, node graphs use "center" anchor
+type ConnectionEndpoint =
+  | { chartId: string; anchor: "timestamp"; timestamp: string }  // ISO 8601 date "YYYY-MM-DD"
+  | { chartId: string; anchor: "center" }                        // For node graphs (no time axis)
 
 interface ConnectionSpec {
-  from: { chartId: string; timestamp: string }
-  to: { chartId: string; timestamp: string }
+  from: ConnectionEndpoint
+  to: ConnectionEndpoint
   label: string
   style: "solid" | "dashed"
 }
 ```
 
+### Position Coordinate System
+
+AI outputs positions in a **logical grid** system, not tldraw pixel coordinates:
+- AI uses a coordinate space where 1 unit = 1 logical block (roughly 400×300 pixels)
+- `position: { x: 0, y: 0 }` = top-left of the whiteboard
+- `position: { x: 1, y: 0 }` = one chart-width to the right
+- `layout.ts` converts these logical positions to tldraw pixel coordinates with spacing gaps
+- This abstraction frees the AI from needing to know tldraw's coordinate system
+
+### Incremental Schema (Follow-up Prompts)
+
+When user adds a follow-up prompt to an existing whiteboard, the AI returns the same `BoardSchema` interface but containing **only the new charts and connections**. Rules:
+- New `connections` may reference existing chart IDs (from the prior schema sent as context)
+- New charts get new unique IDs (no collision with existing IDs)
+- AI cannot modify or remove existing charts — only add new ones
+- Frontend appends new shapes to the canvas without affecting existing positions
+
 **Key design choices:**
-- `DataQuery` separates AI decision-making from data fetching — AI decides *what* data, frontend handles *how* to fetch
-- `position` provides AI-computed initial layout; users can override by dragging on canvas
+- `DataQuery` uses a **discriminated union of predefined query types** instead of raw endpoint strings — this prevents LLM hallucination of invalid endpoints and eliminates SSRF risk. Server functions map each query type to the actual API call.
+- `position` uses a logical grid system; `layout.ts` converts to tldraw coordinates. This decouples AI spatial reasoning from pixel-level details.
 - `ConnectionSpec` uses `timestamp` (not pixel coordinates) to define connection points — frontend converts timestamps to x/y coordinates based on each chart's time axis
 
 ## tldraw Custom Shapes
@@ -146,7 +178,7 @@ interface SyncStore {
 
 - User hovers data point on any chart → `setHover("chart-1", "2023-04-12")`
 - All other charts subscribe → draw vertical cursor line at corresponding timestamp
-- Node graph (no time axis) → highlights nodes/edges relevant to that timestamp
+- Node graph (no time axis) → MVP: no hover sync for node graphs. Node graphs display a static snapshot of fund flows for the queried period. Cross-chart hover sync only applies between time-axis charts (candlestick, bar, line). Future: add temporal node graph animation.
 
 ### Shape Structure
 
@@ -174,9 +206,21 @@ Arrow endpoints must update when charts are dragged or resized:
 
 ### Implementation
 
-- Each Chart Shape exposes **anchor points** calculated from timestamps
-- Arrow shapes bind to these anchors via tldraw's binding mechanism
-- When charts are dragged, arrows follow automatically
+Each Chart Shape must implement a timestamp-to-anchor interface for arrow binding:
+
+```typescript
+// Every time-axis shape exposes this method
+interface TimeAnchorable {
+  getAnchorForTimestamp(timestamp: string): { x: number; y: number } | null
+  // Returns shape-local coordinates for a given timestamp
+  // Returns null if timestamp is outside chart's time range
+}
+```
+
+- tldraw Arrow shapes bind to custom anchor points via tldraw's `BindingUtil`
+- When charts are dragged, tldraw's binding mechanism automatically updates arrow positions
+- `ConnectionArrow.tsx` creates arrow shapes and sets up bindings using each chart's `getAnchorForTimestamp()`
+- For `NodeGraphShape` (no time axis), arrows bind to the shape's center point
 
 ### Visual Style
 
@@ -222,8 +266,11 @@ When user adds a new prompt to an existing whiteboard:
 | Scenario | Handling |
 |----------|----------|
 | LLM returns invalid JSON | Auto-retry once; show error message if still fails |
-| Data API timeout/failure | Show "Data load failed" on that chart; other charts render normally |
-| Prompt too vague | AI returns `{ "clarification": "Which time range?" }` and prompts user |
+| LLM returns valid JSON but invalid schema | Zod validation catches it; auto-retry with error feedback appended to prompt |
+| Data API timeout (>10s) | Abort request; show "Data load timed out" on that chart; other charts render normally |
+| Data API returns empty/unexpected data | Show "No data available for this range" on that chart |
+| Data API rate limit (429) | Show "Rate limited, please wait" with retry countdown |
+| Prompt too vague | AI returns `{ type: "clarification", message: "Which time range?" }` — frontend shows the message in the prompt area and waits for user input |
 
 ## Project Structure
 
@@ -255,12 +302,40 @@ lucidview/
 │   │   ├── fetch-staking.ts       # Beacon Chain proxy
 │   │   └── fetch-flow.ts          # DeFiLlama proxy
 │   └── lib/
-│       ├── llm-client.ts          # LLM adapter (claude -p / Gemini / BYOK)
+│       ├── llm-client.ts          # LLM adapter (see LLM Adapter below)
 │       └── prompt-template.ts     # System prompt + few-shot examples
 ├── app.config.ts                  # TanStack Start config
 ├── package.json
 └── .env                           # API keys (gitignored)
 ```
+
+## LLM Adapter
+
+`llm-client.ts` implements a simple adapter interface to support switching LLM providers:
+
+```typescript
+interface LLMClient {
+  generateBoardSchema(prompt: string, existingSchema?: BoardSchema): Promise<BoardSchema>
+}
+```
+
+Three implementations, swapped via environment variable `LLM_PROVIDER`:
+- **`claude-p`**: Spawns `claude -p` subprocess, passes prompt via stdin, parses stdout as JSON. Local dev only. Has no built-in JSON mode — relies on prompt engineering to produce valid JSON, validated by Zod. On validation failure, uses the same retry-with-error-feedback strategy as other providers.
+- **`gemini`**: Calls Gemini Flash-Lite API via `@google/generative-ai` SDK with JSON mode. Uses `GEMINI_API_KEY` env var.
+- **`openai-compatible`**: Calls any OpenAI-compatible API (OpenAI, DeepSeek, etc.) via `openai` SDK. Uses `OPENAI_API_KEY` + `OPENAI_BASE_URL` env vars. This is the BYOK path.
+
+### Prompt Strategy
+
+`prompt-template.ts` constructs the LLM prompt with:
+1. **System prompt**: Defines the AI's role, the BoardSchema interface (with all valid `DataQuery` types), and output format rules
+2. **Few-shot examples**: 2-3 curated prompt→schema pairs (e.g., "Ethereum Shanghai upgrade" → complete BoardSchema JSON) to ground the AI's output format
+3. **User prompt**: The user's natural language input
+4. **Context** (for follow-ups): A summary of the existing BoardSchema (chart IDs, titles, types, and time ranges — `dataQuery` params stripped to save tokens), so the AI can reference existing chart IDs in new connections without exceeding token budgets
+
+## Additional Decisions
+
+- **Platform**: Desktop-only for MVP. tldraw's mobile experience and chart interactions on touch screens require significant additional work.
+- **localStorage persistence**: Auto-saves the full tldraw document snapshot on every change (debounced 2s). On app load, restores from localStorage if available. No explicit save/load UI needed for MVP.
 
 ## MVP Scope Summary
 
@@ -272,7 +347,7 @@ lucidview/
 - AI-generated arrow annotations connecting key time points
 - Follow-up prompts for incremental chart addition
 - localStorage whiteboard persistence
-- Free data APIs: CoinGecko, DeFiLlama, Beacon Chain
+- Free data APIs: CoinGecko, DeFiLlama, beaconcha.in
 
 **Out of scope (future):**
 - User accounts / authentication
