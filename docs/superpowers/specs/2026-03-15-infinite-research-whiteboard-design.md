@@ -28,7 +28,7 @@ Unlike existing AI chart tools that render a single chart in a fixed `<div>`, Lu
 | State management | Zustand | Cross-chart hover synchronization via shared store |
 | Schema validation | Zod | Native TanStack integration; type inference from schema; LLM output validation |
 | LLM strategy | claude -p (prototype) → Gemini Flash-Lite (dev) → BYOK (production) | Zero cost start; cheapest API for development; user-provided keys for production |
-| Data sources | CoinGecko + DeFiLlama + beaconcha.in | Free tier APIs sufficient for MVP; covers price, TVL, staking, fund flow data |
+| Data sources | CoinGecko + DeFiLlama | Free tier APIs sufficient for MVP; covers price, TVL, staking (via DeFiLlama ETH staking data), fund flow data |
 | Database | None (MVP) | localStorage for whiteboard persistence; no user accounts in MVP |
 | Deployment | Vercel | Native TanStack Start support |
 
@@ -57,7 +57,7 @@ Unlike existing AI chart tools that render a single chart in a fixed `<div>`, Lu
 │              ├───────────────────┤                       │
 │              │ analyzePrompt()   │──▶ LLM                │
 │              │ fetchPriceData()  │──▶ CoinGecko          │
-│              │ fetchStakingData()│──▶ beaconcha.in API     │
+│              │ fetchStakingData()│──▶ DeFiLlama            │
 │              │ fetchFlowData()   │──▶ DeFiLlama          │
 │              └───────────────────┘                       │
 └─────────────────────────────────────────────────────────┘
@@ -113,8 +113,7 @@ type DataQuery =
   | { source: "defillama"; query: "protocol_tvl"; protocol: string }
   | { source: "defillama"; query: "chain_tvl"; chain: string }
   | { source: "defillama"; query: "protocol_flows"; protocol: string; period?: string }
-  | { source: "beaconchain"; query: "staking_deposits"; days: number }
-  | { source: "beaconchain"; query: "validator_count"; days: number }
+  | { source: "defillama"; query: "eth2_staking"; days: number }
 
 // Connection endpoint — time-axis charts use timestamp, node graphs use "center" anchor
 type ConnectionEndpoint =
@@ -131,11 +130,12 @@ interface ConnectionSpec {
 
 ### Position Coordinate System
 
-AI outputs positions in a **logical grid** system, not tldraw pixel coordinates:
-- AI uses a coordinate space where 1 unit = 1 logical block (roughly 400×300 pixels)
+AI outputs positions and sizes in a **logical grid** system, not tldraw pixel coordinates:
+- AI uses a coordinate space where 1 unit = 1 logical block
 - `position: { x: 0, y: 0 }` = top-left of the whiteboard
 - `position: { x: 1, y: 0 }` = one chart-width to the right
-- `layout.ts` converts these logical positions to tldraw pixel coordinates with spacing gaps
+- `size: { width: 1, height: 1 }` = standard chart size (1 grid block). `{ width: 2, height: 1 }` = double-wide chart (e.g., for node graphs)
+- `layout.ts` converts both `position` and `size` to tldraw pixel coordinates: 1 grid unit = 450px wide × 320px tall, with 30px gaps between charts
 - This abstraction frees the AI from needing to know tldraw's coordinate system
 
 ### Incremental Schema (Follow-up Prompts)
@@ -145,6 +145,7 @@ When user adds a follow-up prompt to an existing whiteboard, the AI returns the 
 - New charts get new unique IDs (no collision with existing IDs)
 - AI cannot modify or remove existing charts — only add new ones
 - Frontend appends new shapes to the canvas without affecting existing positions
+- Context sent to AI is the **original LLM-generated schema summary** (chart IDs, types, titles), not reconstructed from canvas state. If user deleted a chart, it is excluded from the summary. User drag/resize changes are not reflected — the AI only needs to know what charts exist for referencing in connections.
 
 **Key design choices:**
 - `DataQuery` uses a **discriminated union of predefined query types** instead of raw endpoint strings — this prevents LLM hallucination of invalid endpoints and eliminates SSRF risk. Server functions map each query type to the actual API call.
@@ -209,12 +210,16 @@ Arrow endpoints must update when charts are dragged or resized:
 Each Chart Shape must implement a timestamp-to-anchor interface for arrow binding:
 
 ```typescript
-// Every time-axis shape exposes this method
+// Every chart shape exposes one of these anchor interfaces
 interface TimeAnchorable {
   getAnchorForTimestamp(timestamp: string): { x: number; y: number } | null
-  // Returns shape-local coordinates for a given timestamp
+  // Returns shape-local coordinates for a given timestamp (ISO 8601 "YYYY-MM-DD")
   // Returns null if timestamp is outside chart's time range
 }
+
+// Node graph shapes use center anchoring (tldraw's default center binding)
+// No custom interface needed — ConnectionArrow.tsx uses tldraw's built-in
+// center binding for shapes with anchor: "center" endpoints.
 ```
 
 - tldraw Arrow shapes bind to custom anchor points via tldraw's `BindingUtil`
@@ -265,8 +270,10 @@ When user adds a new prompt to an existing whiteboard:
 
 | Scenario | Handling |
 |----------|----------|
-| LLM returns invalid JSON | Auto-retry once; show error message if still fails |
-| LLM returns valid JSON but invalid schema | Zod validation catches it; auto-retry with error feedback appended to prompt |
+| LLM returns invalid JSON | Auto-retry once (max 2 total attempts); show error message if still fails |
+| LLM returns valid JSON but invalid schema | Zod validation catches it; auto-retry with error feedback appended to prompt (max 2 total attempts) |
+| LLM API rate limit (429) / server error (5xx) | Show "AI service temporarily unavailable, please try again" with retry button |
+| LLM request timeout (>30s) | Abort; show "AI took too long to respond" with retry button |
 | Data API timeout (>10s) | Abort request; show "Data load timed out" on that chart; other charts render normally |
 | Data API returns empty/unexpected data | Show "No data available for this range" on that chart |
 | Data API rate limit (429) | Show "Rate limited, please wait" with retry countdown |
@@ -299,7 +306,7 @@ lucidview/
 │   ├── functions/
 │   │   ├── analyze-prompt.ts      # LLM call, returns Board Schema
 │   │   ├── fetch-price.ts         # CoinGecko proxy
-│   │   ├── fetch-staking.ts       # Beacon Chain proxy
+│   │   ├── fetch-staking.ts       # DeFiLlama ETH staking proxy
 │   │   └── fetch-flow.ts          # DeFiLlama proxy
 │   └── lib/
 │       ├── llm-client.ts          # LLM adapter (see LLM Adapter below)
@@ -315,7 +322,12 @@ lucidview/
 
 ```typescript
 interface LLMClient {
-  generateBoardSchema(prompt: string, existingSchema?: BoardSchema): Promise<BoardSchema>
+  generate(prompt: string, existingSchema?: BoardSchemaSummary): Promise<BoardResponse>
+}
+
+// Summary sent as context for follow-up prompts (stripped of dataQuery details to save tokens)
+interface BoardSchemaSummary {
+  charts: Array<{ id: string; type: string; title: string }>
 }
 ```
 
@@ -335,7 +347,9 @@ Three implementations, swapped via environment variable `LLM_PROVIDER`:
 ## Additional Decisions
 
 - **Platform**: Desktop-only for MVP. tldraw's mobile experience and chart interactions on touch screens require significant additional work.
-- **localStorage persistence**: Auto-saves the full tldraw document snapshot on every change (debounced 2s). On app load, restores from localStorage if available. No explicit save/load UI needed for MVP.
+- **localStorage persistence**: Auto-saves the full tldraw document snapshot on every change (debounced 2s). On app load, restores from localStorage if available. No explicit save/load UI needed for MVP. Known limitation: localStorage has a ~5MB limit per origin; large whiteboards may hit this. If save fails, show a non-blocking warning. IndexedDB migration is a future improvement.
+- **Token naming**: LLM should output CoinGecko-compatible coin IDs (e.g., `"ethereum"` not `"ETH"`). The system prompt includes a note about this, and server functions can handle common aliases (e.g., `"eth"` → `"ethereum"`) as a fallback.
+- **D3-force in tldraw**: Embedding D3-force inside a tldraw custom shape requires rendering D3's SVG output within React's lifecycle. The `NodeGraphShape` component runs the D3-force simulation in a `useEffect`, outputs node/edge positions, and renders them as SVG elements within the React component — D3 is used as a layout engine only, not for DOM manipulation.
 
 ## MVP Scope Summary
 
@@ -347,7 +361,7 @@ Three implementations, swapped via environment variable `LLM_PROVIDER`:
 - AI-generated arrow annotations connecting key time points
 - Follow-up prompts for incremental chart addition
 - localStorage whiteboard persistence
-- Free data APIs: CoinGecko, DeFiLlama, beaconcha.in
+- Free data APIs: CoinGecko, DeFiLlama
 
 **Out of scope (future):**
 - User accounts / authentication
