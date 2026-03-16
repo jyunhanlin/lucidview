@@ -8,8 +8,20 @@ interface TimeRange {
 }
 
 export function extractTimeRange(data: unknown): TimeRange | undefined {
+  // Handle DeFiLlama array format (staking data comes as raw array)
+  if (Array.isArray(data)) {
+    const arr = data as Array<{ date: number }>
+    if (arr.length > 1 && arr[0]?.date) {
+      return {
+        start: new Date(arr[0].date * 1000).toISOString().split('T')[0],
+        end: new Date(arr[arr.length - 1].date * 1000).toISOString().split('T')[0],
+      }
+    }
+  }
+
   if (!data || typeof data !== 'object') return undefined
   const d = data as Record<string, unknown>
+
   if (Array.isArray(d.prices) && d.prices.length > 1) {
     const first = d.prices[0] as [number, number]
     const last = d.prices[d.prices.length - 1] as [number, number]
@@ -18,6 +30,16 @@ export function extractTimeRange(data: unknown): TimeRange | undefined {
       end: new Date(last[0]).toISOString().split('T')[0],
     }
   }
+
+  // Handle DeFiLlama protocol data with tvl array
+  if (Array.isArray(d.tvl) && d.tvl.length > 1) {
+    const tvl = d.tvl as Array<{ date: number }>
+    return {
+      start: new Date(tvl[0].date * 1000).toISOString().split('T')[0],
+      end: new Date(tvl[tvl.length - 1].date * 1000).toISOString().split('T')[0],
+    }
+  }
+
   return undefined
 }
 

@@ -1,6 +1,6 @@
 import { BaseBoxShapeUtil, TLShape } from 'tldraw'
 import { useEffect, useRef } from 'react'
-import { createChart, type IChartApi, HistogramSeries, LineSeries } from 'lightweight-charts'
+import { createChart, type IChartApi, type ISeriesApi, HistogramSeries, LineSeries } from 'lightweight-charts'
 import { useSyncStore } from '~/stores/sync-store'
 
 const BARLINE_TYPE = 'barline-chart'
@@ -52,7 +52,8 @@ export class BarLineShapeUtil extends BaseBoxShapeUtil<BarLineShape> {
 function BarLineChartComponent({ shape }: { readonly shape: BarLineShape }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
-  const { setHover, clearHover } = useSyncStore()
+  const seriesRef = useRef<ISeriesApi<'Histogram'> | ISeriesApi<'Line'> | null>(null)
+  const { setHover, clearHover, hoveredTimestamp, hoveredChartId } = useSyncStore()
   const { w, h, title, chartId, chartType, data } = shape.props
 
   useEffect(() => {
@@ -90,12 +91,25 @@ function BarLineChartComponent({ shape }: { readonly shape: BarLineShape }) {
     })
 
     chartRef.current = chart
+    seriesRef.current = series
 
     return () => {
       chart.remove()
       chartRef.current = null
+      seriesRef.current = null
     }
   }, [w, h, data, chartId, chartType, setHover, clearHover])
+
+  useEffect(() => {
+    if (!chartRef.current || !seriesRef.current) return
+    if (hoveredChartId === chartId || !hoveredTimestamp) return
+
+    chartRef.current.setCrosshairPosition(
+      NaN,
+      hoveredTimestamp as any,
+      seriesRef.current,
+    )
+  }, [hoveredTimestamp, hoveredChartId, chartId])
 
   const titleColor = chartType === 'bar' ? '#00d2ff' : '#a78bfa'
 

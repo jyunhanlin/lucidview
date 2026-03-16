@@ -1,6 +1,6 @@
 import { BaseBoxShapeUtil, TLShape } from 'tldraw'
 import { useEffect, useRef } from 'react'
-import { createChart, type IChartApi, CandlestickSeries } from 'lightweight-charts'
+import { createChart, type IChartApi, type ISeriesApi, CandlestickSeries } from 'lightweight-charts'
 import { useSyncStore } from '~/stores/sync-store'
 
 const CANDLESTICK_TYPE = 'candlestick-chart'
@@ -50,7 +50,8 @@ export class CandlestickShapeUtil extends BaseBoxShapeUtil<CandlestickShape> {
 function CandlestickChartComponent({ shape }: { readonly shape: CandlestickShape }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
-  const { setHover, clearHover } = useSyncStore()
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const { setHover, clearHover, hoveredTimestamp, hoveredChartId } = useSyncStore()
   const { w, h, title, chartId, data } = shape.props
 
   useEffect(() => {
@@ -92,12 +93,25 @@ function CandlestickChartComponent({ shape }: { readonly shape: CandlestickShape
     })
 
     chartRef.current = chart
+    seriesRef.current = series
 
     return () => {
       chart.remove()
       chartRef.current = null
+      seriesRef.current = null
     }
   }, [w, h, data, chartId, setHover, clearHover])
+
+  useEffect(() => {
+    if (!chartRef.current || !seriesRef.current) return
+    if (hoveredChartId === chartId || !hoveredTimestamp) return
+
+    chartRef.current.setCrosshairPosition(
+      NaN,
+      hoveredTimestamp as any,
+      seriesRef.current,
+    )
+  }, [hoveredTimestamp, hoveredChartId, chartId])
 
   return (
     <div

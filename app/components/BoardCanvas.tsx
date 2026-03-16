@@ -1,6 +1,6 @@
 import { Tldraw, type Editor } from 'tldraw'
 import 'tldraw/tldraw.css'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CandlestickShapeUtil } from '~/shapes/CandlestickShape'
 import { BarLineShapeUtil } from '~/shapes/BarLineShape'
 import { NodeGraphShapeUtil } from '~/shapes/NodeGraphShape'
@@ -14,6 +14,7 @@ interface BoardCanvasProps {
 
 export function BoardCanvas({ onEditorReady }: BoardCanvasProps) {
   const editorRef = useRef<Editor | null>(null)
+  const [editorReady, setEditorReady] = useState(false)
 
   const handleMount = useCallback(
     (editor: Editor) => {
@@ -22,13 +23,14 @@ export function BoardCanvas({ onEditorReady }: BoardCanvasProps) {
         const saved = localStorage.getItem(STORAGE_KEY)
         if (saved) {
           const snapshot = JSON.parse(saved)
-          editor.store.loadSnapshot(snapshot)
+          editor.loadSnapshot(snapshot)
         }
       } catch (err) {
         console.warn('Failed to restore board:', err)
       }
 
       editorRef.current = editor
+      setEditorReady(true)
       onEditorReady(editor)
     },
     [onEditorReady],
@@ -44,7 +46,7 @@ export function BoardCanvas({ onEditorReady }: BoardCanvasProps) {
       clearTimeout(saveTimeout)
       saveTimeout = setTimeout(() => {
         try {
-          const snapshot = editor.store.getSnapshot()
+          const snapshot = editor.getSnapshot()
           localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot))
         } catch (err) {
           console.warn('Failed to save board:', err)
@@ -56,7 +58,7 @@ export function BoardCanvas({ onEditorReady }: BoardCanvasProps) {
       unsub()
       clearTimeout(saveTimeout)
     }
-  })
+  }, [editorReady])
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>

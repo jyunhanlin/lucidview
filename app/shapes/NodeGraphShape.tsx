@@ -79,15 +79,13 @@ function NodeGraphComponent({ shape }: { readonly shape: NodeGraphShape }) {
       .force('link', forceLink<GraphNode, GraphLink>(links).id((d) => d.id).distance(100))
       .force('charge', forceManyBody().strength(-200))
       .force('center', forceCenter(w / 2, (h - 30) / 2))
+      .stop()
 
-    simulation.on('tick', () => {
-      setSimulatedNodes([...nodes])
-      setSimulatedLinks([...links])
-    })
+    // Run simulation to completion synchronously (single render)
+    simulation.tick(300)
 
-    return () => {
-      simulation.stop()
-    }
+    setSimulatedNodes([...nodes])
+    setSimulatedLinks([...links])
   }, [inputNodes, inputLinks, w, h])
 
   const maxValue = Math.max(...inputNodes.map((n) => n.value), 1)
