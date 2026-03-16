@@ -1,0 +1,49 @@
+{
+  "name": "lucidview",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jyunhanlin/lucidview.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/jyunhanlin/lucidview/issues"
+  },
+  "homepage": "https://github.com/jyunhanlin/lucidview#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@tanstack/react-router": "^1.167.3",
+    "@tanstack/react-start": "^1.166.14",
+    "@vitejs/plugin-react": "^6.0.1",
+    "d3-force": "^3.0.0",
+    "lightweight-charts": "^5.1.0",
+    "openai": "^6.29.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tldraw": "^4.4.1",
+    "vinxi": "^0.5.11",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/d3-force": "^3.0.10",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
+  }
+}
