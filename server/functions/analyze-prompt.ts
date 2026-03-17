@@ -9,7 +9,7 @@ const inputSchema = z.object({
 })
 
 export const analyzePrompt = createServerFn({ method: 'POST' })
-  .validator(inputSchema)
+  .inputValidator(inputSchema)
   .handler(async ({ data }): Promise<BoardResponse> => {
     const provider = process.env.LLM_PROVIDER ?? 'claude-p'
     const client = createLLMClient(provider)
