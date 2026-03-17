@@ -1,4 +1,8 @@
-import { boardResponseSchema, type BoardResponse, type BoardSchemaSummary } from '~/schemas/board-schema'
+import {
+  boardResponseSchema,
+  type BoardResponse,
+  type BoardSchemaSummary,
+} from '~/schemas/board-schema'
 
 export interface LLMClient {
   generate(prompt: string, existingSchema?: BoardSchemaSummary): Promise<BoardResponse>

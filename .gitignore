@@ -1,6 +1,8 @@
 .superpowers/
 node_modules/
 dist/
+coverage/
 .vinxi/
-.env
 .output/
+.env
+*.tsbuildinfo

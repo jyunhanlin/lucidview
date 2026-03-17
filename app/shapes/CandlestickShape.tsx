@@ -106,11 +106,7 @@ function CandlestickChartComponent({ shape }: { readonly shape: CandlestickShape
     if (!chartRef.current || !seriesRef.current) return
     if (hoveredChartId === chartId || !hoveredTimestamp) return
 
-    chartRef.current.setCrosshairPosition(
-      NaN,
-      hoveredTimestamp as any,
-      seriesRef.current,
-    )
+    chartRef.current.setCrosshairPosition(NaN, hoveredTimestamp as any, seriesRef.current)
   }, [hoveredTimestamp, hoveredChartId, chartId])
 
   return (

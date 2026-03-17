@@ -136,14 +136,13 @@ function buildExistingContext(existingSchema?: BoardSchemaSummary): string {
   for (const chart of existingSchema.charts) {
     lines.push(`- ${chart.id}: ${chart.title} (${chart.type})`)
   }
-  lines.push('\nYou may reference these chart IDs in new connections. Only output NEW charts and connections.')
+  lines.push(
+    '\nYou may reference these chart IDs in new connections. Only output NEW charts and connections.',
+  )
   return lines.join('\n')
 }
 
-export function buildUserPrompt(
-  userPrompt: string,
-  existingSchema?: BoardSchemaSummary,
-): string {
+export function buildUserPrompt(userPrompt: string, existingSchema?: BoardSchemaSummary): string {
   const parts: string[] = []
 
   const context = buildExistingContext(existingSchema)
@@ -153,10 +152,7 @@ export function buildUserPrompt(
   return parts.join('\n')
 }
 
-export function buildPrompt(
-  userPrompt: string,
-  existingSchema?: BoardSchemaSummary,
-): string {
+export function buildPrompt(userPrompt: string, existingSchema?: BoardSchemaSummary): string {
   const parts: string[] = []
   parts.push(buildSystemPrompt())
   parts.push(FEW_SHOT_EXAMPLE)

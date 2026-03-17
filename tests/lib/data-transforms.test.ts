@@ -59,7 +59,7 @@ describe('convertToOHLC', () => {
     const prices: Array<[number, number]> = [
       [1672531200000, 100], // 2023-01-01 00:00
       [1672534800000, 110], // 2023-01-01 01:00
-      [1672538400000, 95],  // 2023-01-01 02:00
+      [1672538400000, 95], // 2023-01-01 02:00
       [1672617600000, 105], // 2023-01-02 00:00
     ]
     const result = convertToOHLC(prices)
@@ -82,7 +82,10 @@ describe('convertToOHLC', () => {
 describe('convertToTimeValue', () => {
   it('converts CoinGecko prices format', () => {
     const data = {
-      prices: [[1672531200000, 1200], [1672617600000, 1250]],
+      prices: [
+        [1672531200000, 1200],
+        [1672617600000, 1250],
+      ],
     }
     const result = convertToTimeValue(data)
     expect(result).toHaveLength(2)

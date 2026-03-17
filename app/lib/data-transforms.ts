@@ -53,9 +53,7 @@ interface OHLCData {
   readonly close: number
 }
 
-export function convertToOHLC(
-  prices: ReadonlyArray<readonly [number, number]>,
-): OHLCData[] {
+export function convertToOHLC(prices: ReadonlyArray<readonly [number, number]>): OHLCData[] {
   const dayMap = new Map<string, number[]>()
 
   for (const [ts, price] of prices) {
@@ -84,8 +82,9 @@ interface TimeValueData {
 export function convertToTimeValue(data: unknown): TimeValueData[] {
   if (Array.isArray(data)) {
     return data
-      .filter((entry): entry is { date: number; totalLiquidityUSD?: number; tvl?: number } =>
-        typeof entry === 'object' && entry !== null && 'date' in entry
+      .filter(
+        (entry): entry is { date: number; totalLiquidityUSD?: number; tvl?: number } =>
+          typeof entry === 'object' && entry !== null && 'date' in entry,
       )
       .map((entry) => ({
         time: new Date(entry.date * 1000).toISOString().split('T')[0],
@@ -122,7 +121,9 @@ export function convertToGraph(data: unknown): GraphData {
   const d = data as Record<string, unknown>
 
   if (d.chains && Array.isArray(d.chains)) {
-    const chainBreakdown = d.chainTvls as Record<string, { tvl: Array<{ date: number; totalLiquidityUSD: number }> }> | undefined
+    const chainBreakdown = d.chainTvls as
+      | Record<string, { tvl: Array<{ date: number; totalLiquidityUSD: number }> }>
+      | undefined
 
     const nodes = (d.chains as string[]).slice(0, 8).map((chain) => {
       const tvl = chainBreakdown?.[chain]?.tvl
@@ -153,10 +154,13 @@ export function convertToGraph(data: unknown): GraphData {
 
 export function getShapeType(chartType: ChartSpec['type']): string {
   switch (chartType) {
-    case 'candlestick': return 'candlestick-chart'
+    case 'candlestick':
+      return 'candlestick-chart'
     case 'bar':
-    case 'line': return 'barline-chart'
-    case 'node-graph': return 'node-graph'
+    case 'line':
+      return 'barline-chart'
+    case 'node-graph':
+      return 'node-graph'
   }
 }
 

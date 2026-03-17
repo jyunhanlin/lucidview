@@ -63,10 +63,7 @@ const centerAnchor = z.object({
   anchor: z.literal('center'),
 })
 
-const connectionEndpointSchema = z.discriminatedUnion('anchor', [
-  timestampAnchor,
-  centerAnchor,
-])
+const connectionEndpointSchema = z.discriminatedUnion('anchor', [timestampAnchor, centerAnchor])
 
 export const connectionSpecSchema = z.object({
   from: connectionEndpointSchema,
@@ -106,19 +103,18 @@ const clarificationResult = z.object({
   message: z.string(),
 })
 
-export const boardResponseSchema = z.discriminatedUnion('type', [
-  boardResult,
-  clarificationResult,
-])
+export const boardResponseSchema = z.discriminatedUnion('type', [boardResult, clarificationResult])
 
 // --- BoardSchemaSummary (for follow-up context) ---
 
 export const boardSchemaSummarySchema = z.object({
-  charts: z.array(z.object({
-    id: z.string(),
-    type: z.string(),
-    title: z.string(),
-  })),
+  charts: z.array(
+    z.object({
+      id: z.string(),
+      type: z.string(),
+      title: z.string(),
+    }),
+  ),
 })
 
 // --- Inferred types ---

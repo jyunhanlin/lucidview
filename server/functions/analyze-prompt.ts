@@ -18,6 +18,8 @@ export const analyzePrompt = createServerFn({ method: 'POST' })
     let lastError: Error | null = null
     let promptWithFeedback = data.prompt
 
+    // Intentional sequential retry — each attempt depends on the previous error
+    // eslint-disable-next-line no-await-in-loop
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         const result = await client.generate(promptWithFeedback, data.existingSchema)

@@ -13,7 +13,10 @@ describe('fetchPriceData', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        prices: [[1681257600000, 1850.5], [1681344000000, 1900.2]],
+        prices: [
+          [1681257600000, 1850.5],
+          [1681344000000, 1900.2],
+        ],
       }),
     })
 
@@ -45,10 +48,7 @@ describe('fetchPriceData', () => {
       days: 30,
     })
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('ethereum'),
-      expect.any(Object),
-    )
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('ethereum'), expect.any(Object))
   })
 
   it('throws on API error', async () => {

@@ -3,7 +3,10 @@ import type { DataQuery } from '~/schemas/board-schema'
 // Handles protocol_tvl, chain_tvl, protocol_flows queries.
 // eth2_staking is handled by fetchStakingData — do NOT add it here.
 export async function fetchFlowData(
-  query: Extract<DataQuery, { source: 'defillama'; query: 'protocol_tvl' | 'chain_tvl' | 'protocol_flows' }>,
+  query: Extract<
+    DataQuery,
+    { source: 'defillama'; query: 'protocol_tvl' | 'chain_tvl' | 'protocol_flows' }
+  >,
 ): Promise<unknown> {
   let url: string
 

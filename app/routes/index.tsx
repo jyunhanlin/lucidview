@@ -24,44 +24,47 @@ function HomePage() {
     editorRef.current = editor
   }, [])
 
-  const handleSubmit = useCallback(async (prompt: string) => {
-    const editor = editorRef.current
-    if (!editor) return
+  const handleSubmit = useCallback(
+    async (prompt: string) => {
+      const editor = editorRef.current
+      if (!editor) return
 
-    setClarification(null)
+      setClarification(null)
 
-    try {
-      // Phase 1: AI analysis
-      setLoading('analyzing')
-      const existing = boardHistory.charts.length > 0 ? boardHistory : undefined
-      const response = await analyzePrompt({ data: { prompt, existingSchema: existing } })
+      try {
+        // Phase 1: AI analysis
+        setLoading('analyzing')
+        const existing = boardHistory.charts.length > 0 ? boardHistory : undefined
+        const response = await analyzePrompt({ data: { prompt, existingSchema: existing } })
 
-      if (response.type === 'clarification') {
-        setClarification(response.message)
+        if (response.type === 'clarification') {
+          setClarification(response.message)
+          setLoading(null)
+          return
+        }
+
+        const schema = response.data
+
+        // Phase 2+3: Fetch data and render
+        setLoading('fetching')
+        await renderBoardSchema(editor, schema)
         setLoading(null)
-        return
+
+        // Update board history for follow-up prompts
+        setBoardHistory((prev) => ({
+          charts: [
+            ...prev.charts,
+            ...schema.charts.map((c) => ({ id: c.id, type: c.type, title: c.title })),
+          ],
+        }))
+      } catch (err) {
+        console.error('Board generation failed:', err)
+        setClarification(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        setLoading(null)
       }
-
-      const schema = response.data
-
-      // Phase 2+3: Fetch data and render
-      setLoading('fetching')
-      await renderBoardSchema(editor, schema)
-      setLoading(null)
-
-      // Update board history for follow-up prompts
-      setBoardHistory((prev) => ({
-        charts: [
-          ...prev.charts,
-          ...schema.charts.map((c) => ({ id: c.id, type: c.type, title: c.title })),
-        ],
-      }))
-    } catch (err) {
-      console.error('Board generation failed:', err)
-      setClarification(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-      setLoading(null)
-    }
-  }, [boardHistory])
+    },
+    [boardHistory],
+  )
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>

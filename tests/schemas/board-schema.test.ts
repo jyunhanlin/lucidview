@@ -18,7 +18,13 @@ describe('dataQuerySchema', () => {
   })
 
   it('accepts coingecko price_history with optional vs_currency', () => {
-    const query = { source: 'coingecko', query: 'price_history', token: 'bitcoin', days: 90, vs_currency: 'eur' }
+    const query = {
+      source: 'coingecko',
+      query: 'price_history',
+      token: 'bitcoin',
+      days: 90,
+      vs_currency: 'eur',
+    }
     expect(dataQuerySchema.parse(query)).toEqual(query)
   })
 
@@ -86,14 +92,21 @@ describe('boardResponseSchema', () => {
       type: 'board',
       data: {
         title: 'ETH Analysis',
-        charts: [{
-          id: 'chart-1',
-          type: 'candlestick',
-          title: 'ETH Price',
-          position: { x: 0, y: 0 },
-          size: { width: 1, height: 1 },
-          dataQuery: { source: 'coingecko', query: 'price_history', token: 'ethereum', days: 180 },
-        }],
+        charts: [
+          {
+            id: 'chart-1',
+            type: 'candlestick',
+            title: 'ETH Price',
+            position: { x: 0, y: 0 },
+            size: { width: 1, height: 1 },
+            dataQuery: {
+              source: 'coingecko',
+              query: 'price_history',
+              token: 'ethereum',
+              days: 180,
+            },
+          },
+        ],
         connections: [],
       },
     }

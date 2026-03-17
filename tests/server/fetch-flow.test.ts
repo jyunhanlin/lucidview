@@ -29,7 +29,7 @@ describe('fetchFlowData', () => {
   it('fetches chain TVL', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ([{ date: 1681257600, tvl: 50000000 }]),
+      json: async () => [{ date: 1681257600, tvl: 50000000 }],
     })
 
     const result = await fetchFlowData({

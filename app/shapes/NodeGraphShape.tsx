@@ -76,7 +76,12 @@ function NodeGraphComponent({ shape }: { readonly shape: NodeGraphShape }) {
     const links: GraphLink[] = inputLinks.map((l) => ({ ...l }))
 
     const simulation = forceSimulation(nodes)
-      .force('link', forceLink<GraphNode, GraphLink>(links).id((d) => d.id).distance(100))
+      .force(
+        'link',
+        forceLink<GraphNode, GraphLink>(links)
+          .id((d) => d.id)
+          .distance(100),
+      )
       .force('charge', forceManyBody().strength(-200))
       .force('center', forceCenter(w / 2, (h - 30) / 2))
       .stop()
@@ -162,13 +167,7 @@ function NodeGraphComponent({ shape }: { readonly shape: NodeGraphShape }) {
                 stroke="#00d2ff"
                 strokeWidth={2}
               />
-              <text
-                x={node.x}
-                y={node.y + 4}
-                fill="#fff"
-                fontSize={10}
-                textAnchor="middle"
-              >
+              <text x={node.x} y={node.y + 4} fill="#fff" fontSize={10} textAnchor="middle">
                 {node.label}
               </text>
             </g>

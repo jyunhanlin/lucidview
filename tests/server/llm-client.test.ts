@@ -19,14 +19,21 @@ describe('parseLLMResponse', () => {
       type: 'board',
       data: {
         title: 'Test',
-        charts: [{
-          id: 'chart-1',
-          type: 'candlestick',
-          title: 'ETH',
-          position: { x: 0, y: 0 },
-          size: { width: 1, height: 1 },
-          dataQuery: { source: 'coingecko', query: 'price_history', token: 'ethereum', days: 180 },
-        }],
+        charts: [
+          {
+            id: 'chart-1',
+            type: 'candlestick',
+            title: 'ETH',
+            position: { x: 0, y: 0 },
+            size: { width: 1, height: 1 },
+            dataQuery: {
+              source: 'coingecko',
+              query: 'price_history',
+              token: 'ethereum',
+              days: 180,
+            },
+          },
+        ],
         connections: [],
       },
     })

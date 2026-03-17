@@ -1,6 +1,12 @@
 import { BaseBoxShapeUtil, TLShape } from 'tldraw'
 import { useEffect, useRef } from 'react'
-import { createChart, type IChartApi, type ISeriesApi, HistogramSeries, LineSeries } from 'lightweight-charts'
+import {
+  createChart,
+  type IChartApi,
+  type ISeriesApi,
+  HistogramSeries,
+  LineSeries,
+} from 'lightweight-charts'
 import { useSyncStore } from '~/stores/sync-store'
 
 const BARLINE_TYPE = 'barline-chart'
@@ -73,9 +79,10 @@ function BarLineChartComponent({ shape }: { readonly shape: BarLineShape }) {
       crosshair: { mode: 0 },
     })
 
-    const series = chartType === 'bar'
-      ? chart.addSeries(HistogramSeries, { color: '#00d2ff' })
-      : chart.addSeries(LineSeries, { color: '#a78bfa', lineWidth: 2 })
+    const series =
+      chartType === 'bar'
+        ? chart.addSeries(HistogramSeries, { color: '#00d2ff' })
+        : chart.addSeries(LineSeries, { color: '#a78bfa', lineWidth: 2 })
 
     if (data.length > 0) {
       series.setData(data)
@@ -104,11 +111,7 @@ function BarLineChartComponent({ shape }: { readonly shape: BarLineShape }) {
     if (!chartRef.current || !seriesRef.current) return
     if (hoveredChartId === chartId || !hoveredTimestamp) return
 
-    chartRef.current.setCrosshairPosition(
-      NaN,
-      hoveredTimestamp as any,
-      seriesRef.current,
-    )
+    chartRef.current.setCrosshairPosition(NaN, hoveredTimestamp as any, seriesRef.current)
   }, [hoveredTimestamp, hoveredChartId, chartId])
 
   const titleColor = chartType === 'bar' ? '#00d2ff' : '#a78bfa'
