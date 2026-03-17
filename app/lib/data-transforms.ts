@@ -72,6 +72,18 @@ export function convertToOHLC(prices: ReadonlyArray<readonly [number, number]>):
   }))
 }
 
+// --- Deduplication: Lightweight Charts requires unique, ascending time values ---
+
+function deduplicateByTime(data: ReadonlyArray<TimeValueData>): TimeValueData[] {
+  const dayMap = new Map<string, number>()
+  for (const entry of data) {
+    dayMap.set(entry.time, entry.value) // last value per day wins
+  }
+  return Array.from(dayMap.entries())
+    .map(([time, value]) => ({ time, value }))
+    .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+}
+
 // --- Time-value conversion for bar/line charts ---
 
 interface TimeValueData {
@@ -80,8 +92,10 @@ interface TimeValueData {
 }
 
 export function convertToTimeValue(data: unknown): TimeValueData[] {
+  let raw: TimeValueData[]
+
   if (Array.isArray(data)) {
-    return data
+    raw = data
       .filter(
         (entry): entry is { date: number; totalLiquidityUSD?: number; tvl?: number } =>
           typeof entry === 'object' && entry !== null && 'date' in entry,
@@ -90,24 +104,24 @@ export function convertToTimeValue(data: unknown): TimeValueData[] {
         time: new Date(entry.date * 1000).toISOString().split('T')[0],
         value: entry.totalLiquidityUSD ?? entry.tvl ?? 0,
       }))
+  } else {
+    const d = data as Record<string, unknown>
+    if (Array.isArray(d.prices)) {
+      raw = (d.prices as Array<[number, number]>).map(([ts, value]) => ({
+        time: new Date(ts).toISOString().split('T')[0],
+        value,
+      }))
+    } else if (Array.isArray(d.tvl)) {
+      raw = (d.tvl as Array<{ date: number; totalLiquidityUSD: number }>).map((entry) => ({
+        time: new Date(entry.date * 1000).toISOString().split('T')[0],
+        value: entry.totalLiquidityUSD,
+      }))
+    } else {
+      return []
+    }
   }
 
-  const d = data as Record<string, unknown>
-  if (Array.isArray(d.prices)) {
-    return (d.prices as Array<[number, number]>).map(([ts, value]) => ({
-      time: new Date(ts).toISOString().split('T')[0],
-      value,
-    }))
-  }
-
-  if (Array.isArray(d.tvl)) {
-    return (d.tvl as Array<{ date: number; totalLiquidityUSD: number }>).map((entry) => ({
-      time: new Date(entry.date * 1000).toISOString().split('T')[0],
-      value: entry.totalLiquidityUSD,
-    }))
-  }
-
-  return []
+  return deduplicateByTime(raw)
 }
 
 // --- Graph data conversion for node-graph charts ---
