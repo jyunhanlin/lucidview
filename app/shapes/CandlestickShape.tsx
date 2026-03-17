@@ -131,7 +131,22 @@ function CandlestickChartComponent({ shape }: { readonly shape: CandlestickShape
       >
         {title}
       </div>
-      <div ref={containerRef} />
+      {!data || data.length === 0 ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: h - 30,
+            color: '#666',
+            fontSize: 13,
+          }}
+        >
+          No data available
+        </div>
+      ) : (
+        <div ref={containerRef} />
+      )}
     </div>
   )
 }

@@ -24,6 +24,7 @@ export async function fetchPriceData(
   query: Extract<DataQuery, { source: 'coingecko' }>,
 ): Promise<PriceDataResult | MarketDataResult> {
   const token = resolveToken(query.token)
+  const apiKey = process.env.COINGECKO_API_KEY
 
   let url: string
   if (query.query === 'price_history') {
@@ -33,8 +34,13 @@ export async function fetchPriceData(
     url = `https://api.coingecko.com/api/v3/coins/${token}`
   }
 
+  const headers: Record<string, string> = { accept: 'application/json' }
+  if (apiKey) {
+    headers['x-cg-demo-api-key'] = apiKey
+  }
+
   const response = await fetch(url, {
-    headers: { accept: 'application/json' },
+    headers,
     signal: AbortSignal.timeout(10_000),
   })
 
