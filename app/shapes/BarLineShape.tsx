@@ -63,7 +63,7 @@ function BarLineChartComponent({ shape }: { readonly shape: BarLineShape }) {
   const { w, h, title, chartId, chartType, data } = shape.props
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!containerRef.current || !data || data.length === 0) return
 
     const chart = createChart(containerRef.current, {
       width: w,

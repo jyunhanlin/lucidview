@@ -55,7 +55,7 @@ function CandlestickChartComponent({ shape }: { readonly shape: CandlestickShape
   const { w, h, title, chartId, data } = shape.props
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!containerRef.current || !data || data.length === 0) return
 
     const chart = createChart(containerRef.current, {
       width: w,
