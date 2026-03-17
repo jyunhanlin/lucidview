@@ -9,6 +9,9 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  ssr: {
+    noExternal: ['tldraw', '@tldraw/editor', '@tldraw/tlschema', '@tldraw/state', '@tldraw/store', '@tldraw/utils', '@tldraw/validate'],
+  },
   plugins: [
     tanstackStart({
       srcDirectory: 'app',
