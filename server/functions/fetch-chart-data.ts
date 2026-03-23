@@ -30,9 +30,7 @@ async function fetchDataForQuery(query: DataQuery): Promise<Record<string, {}>> 
       break
     case 'defillama':
       result =
-        query.query === 'eth2_staking'
-          ? await fetchStakingData(query)
-          : await fetchFlowData(query)
+        query.query === 'eth2_staking' ? await fetchStakingData(query) : await fetchFlowData(query)
       break
   }
   return result as Record<string, {}>

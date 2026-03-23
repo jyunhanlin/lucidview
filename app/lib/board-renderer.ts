@@ -3,7 +3,12 @@ import type { BoardSchema } from '~/schemas/board-schema'
 import { gridToPixel } from '~/lib/layout'
 import { createConnectionArrows } from '~/shapes/ConnectionArrow'
 import { fetchAllChartData, type ChartDataResult } from '../../server/functions/fetch-chart-data'
-import { extractTimeRange, getShapeType, buildShapeProps, type ChartData } from '~/lib/data-transforms'
+import {
+  extractTimeRange,
+  getShapeType,
+  buildShapeProps,
+  type ChartData,
+} from '~/lib/data-transforms'
 
 // --- Board rendering ---
 
