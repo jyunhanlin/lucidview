@@ -17,11 +17,13 @@ You MUST respond with a JSON object matching one of these two formats:
   }
 }
 
-2. Clarification request (when the prompt is too vague):
+2. Clarification request (ONLY when the prompt is completely unintelligible or has no crypto/finance relevance at all):
 {
   "type": "clarification",
   "message": "Your question to the user"
 }
+
+IMPORTANT: Always prefer generating a board. Make reasonable assumptions about time periods, tokens, and context rather than asking for clarification. Only use clarification as a last resort.
 
 ## BoardSchema Interface
 
@@ -36,18 +38,24 @@ interface ChartSpec {
 
 ## Valid DataQuery Types
 
-Use ONLY these predefined query types:
+All fields are FLAT in the dataQuery object (NO nested "params" object).
 
-| source     | query            | params                                    |
-|------------|------------------|-------------------------------------------|
-| coingecko  | price_history    | token (string), days (number), vs_currency? (string, default "usd") |
-| coingecko  | market_data      | token (string)                            |
-| defillama  | protocol_tvl     | protocol (string)                         |
-| defillama  | chain_tvl        | chain (string)                            |
-| defillama  | protocol_flows   | protocol (string), period? (string)       |
-| defillama  | eth2_staking     | days (number)                             |
+Examples:
+- { "source": "coingecko", "query": "price_history", "token": "bitcoin", "days": 90 }
+- { "source": "defillama", "query": "protocol_tvl", "protocol": "lido" }
+
+Available query types:
+- coingecko / price_history: token (string), days (number), vs_currency? (string, default "usd") — USE THIS for any price/volume/market cap trend chart
+- coingecko / market_data: token (string) — returns a SINGLE snapshot, NOT time series. Only use for node-graph metadata, never for line/bar/candlestick charts
+- defillama / protocol_tvl: protocol (string) — DeFi protocols only (e.g., "lido", "aave", "uniswap", "makerdao", "compound")
+- defillama / chain_tvl: chain (string) — blockchain names (e.g., "ethereum", "bsc", "polygon", "arbitrum", "solana")
+- defillama / protocol_flows: protocol (string), period? (string) — DeFi protocols only, shows chain breakdown as graph
+- defillama / eth2_staking: days (number)
 
 IMPORTANT: For "token" field, use CoinGecko-compatible IDs (e.g., "ethereum" not "ETH", "bitcoin" not "BTC").
+IMPORTANT: All fields go directly in dataQuery. Do NOT wrap them in a "params" object.
+IMPORTANT: DeFiLlama only tracks DeFi PROTOCOLS (lido, aave, uniswap, etc.) — NOT tokens like "bitcoin" or "ethereum". Do not use DeFiLlama queries with token names.
+IMPORTANT: Chart titles must accurately describe the data source. Do not use titles like "Exchange Inflows" or "On-Chain Volume" when the data is just price history from CoinGecko.
 
 ## ConnectionSpec
 
@@ -65,6 +73,12 @@ For node-graph charts (no time axis), use center anchor:
 ## Timestamps
 
 All timestamps MUST use ISO 8601 date format: "YYYY-MM-DD" (e.g., "2023-04-12").
+
+## Chart Type Constraints
+
+- candlestick: ONLY with coingecko/price_history
+- bar / line: with coingecko/price_history OR defillama time series (protocol_tvl, chain_tvl, eth2_staking)
+- node-graph: ONLY with defillama/protocol_flows or defillama/protocol_tvl (these have chain breakdown data). NEVER use coingecko data for node-graph.
 
 ## Layout Guidelines
 

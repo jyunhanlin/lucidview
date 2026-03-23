@@ -14,6 +14,18 @@ export function parseLLMResponse(raw: string): BoardResponse {
   const jsonStr = jsonMatch ? jsonMatch[1].trim() : raw.trim()
 
   const parsed = JSON.parse(jsonStr)
+  console.log('[LLM raw output]', JSON.stringify(parsed, null, 2))
+
+  // Defensive: flatten nested "params" in dataQuery (smaller models sometimes wrap fields)
+  if (parsed.type === 'board' && Array.isArray(parsed.data?.charts)) {
+    for (const chart of parsed.data.charts) {
+      if (chart.dataQuery?.params && typeof chart.dataQuery.params === 'object') {
+        const { params, ...rest } = chart.dataQuery
+        chart.dataQuery = { ...rest, ...params }
+      }
+    }
+  }
+
   return boardResponseSchema.parse(parsed)
 }
 
@@ -39,7 +51,7 @@ function createAnthropicClient(): LLMClient {
       const { buildSystemPrompt, buildUserPrompt } = await import('./prompt-template')
 
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-      const model = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-latest'
+      const model = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5'
 
       const response = await client.messages.create({
         model,
