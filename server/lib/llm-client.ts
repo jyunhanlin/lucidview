@@ -54,8 +54,8 @@ function createAnthropicClient(): LLMClient {
       const text =
         '{' +
         response.content
-          .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
-          .map((block) => block.text)
+          .filter((block) => block.type === 'text')
+          .map((block) => ('text' in block ? block.text : ''))
           .join('')
 
       return parseLLMResponse(text)

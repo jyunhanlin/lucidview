@@ -8,6 +8,7 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 *.log
+.vscode/
 
 # env files (keep .env and .env.example committed)
 .env.local

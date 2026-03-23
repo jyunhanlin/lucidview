@@ -32,7 +32,7 @@ describe('fetchPriceData', () => {
       expect.any(Object),
     )
     expect(result).toHaveProperty('prices')
-    expect(result.prices).toHaveLength(2)
+    expect((result as { prices: unknown[] }).prices).toHaveLength(2)
   })
 
   it('handles common token aliases', async () => {

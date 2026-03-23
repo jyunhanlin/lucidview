@@ -18,24 +18,29 @@ const inputSchema = z.object({
 export interface ChartDataResult {
   readonly id: string
   readonly chartType: string
-  readonly rawData: unknown
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- TanStack Start serialization requires {} over unknown
+  readonly rawData: Record<string, {}> | null
 }
 
-async function fetchDataForQuery(query: DataQuery): Promise<unknown> {
+async function fetchDataForQuery(query: DataQuery): Promise<Record<string, {}>> {
+  let result: unknown
   switch (query.source) {
     case 'coingecko':
-      return fetchPriceData(query)
+      result = await fetchPriceData(query)
+      break
     case 'defillama':
-      if (query.query === 'eth2_staking') {
-        return fetchStakingData(query)
-      }
-      return fetchFlowData(query)
+      result =
+        query.query === 'eth2_staking'
+          ? await fetchStakingData(query)
+          : await fetchFlowData(query)
+      break
   }
+  return result as Record<string, {}>
 }
 
 export const fetchAllChartData = createServerFn({ method: 'POST' })
   .inputValidator(inputSchema)
-  .handler(async ({ data }): Promise<ChartDataResult[]> => {
+  .handler(async ({ data }) => {
     const results = await Promise.all(
       data.charts.map(async (chart) => {
         try {

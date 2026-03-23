@@ -2,7 +2,7 @@ import { createShapeId, type Editor, type TLShapeId } from 'tldraw'
 import type { BoardSchema } from '~/schemas/board-schema'
 import { gridToPixel } from '~/lib/layout'
 import { createConnectionArrows } from '~/shapes/ConnectionArrow'
-import { fetchAllChartData } from '../../server/functions/fetch-chart-data'
+import { fetchAllChartData, type ChartDataResult } from '../../server/functions/fetch-chart-data'
 import { extractTimeRange, getShapeType, buildShapeProps, type ChartData } from '~/lib/data-transforms'
 
 // --- Board rendering ---
@@ -16,7 +16,7 @@ export async function renderBoardSchema(
   schema: BoardSchema,
 ): Promise<RenderResult> {
   // Fetch all chart data via server function (avoids CORS issues)
-  const results = await fetchAllChartData({
+  const results = (await fetchAllChartData({
     data: {
       charts: schema.charts.map((c) => ({
         id: c.id,
@@ -24,7 +24,7 @@ export async function renderBoardSchema(
         dataQuery: c.dataQuery,
       })),
     },
-  })
+  })) as ChartDataResult[]
 
   // Build ChartData map from server results
   const chartDataMap = new Map<string, ChartData>()
