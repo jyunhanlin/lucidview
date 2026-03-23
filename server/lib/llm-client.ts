@@ -19,6 +19,8 @@ export function parseLLMResponse(raw: string): BoardResponse {
 
 export function createLLMClient(provider: string): LLMClient {
   switch (provider) {
+    case 'anthropic':
+      return createAnthropicClient()
     case 'claude-p':
       return createClaudePClient()
     case 'gemini':
@@ -27,6 +29,37 @@ export function createLLMClient(provider: string): LLMClient {
       return createOpenAICompatibleClient()
     default:
       throw new Error(`Unknown LLM provider: ${provider}`)
+  }
+}
+
+function createAnthropicClient(): LLMClient {
+  return {
+    async generate(prompt, existingSchema) {
+      const Anthropic = (await import('@anthropic-ai/sdk')).default
+      const { buildSystemPrompt, buildUserPrompt } = await import('./prompt-template')
+
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+      const model = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-latest'
+
+      const response = await client.messages.create({
+        model,
+        max_tokens: 4096,
+        system: buildSystemPrompt(),
+        messages: [
+          { role: 'user', content: buildUserPrompt(prompt, existingSchema) },
+          { role: 'assistant', content: '{' },
+        ],
+      })
+
+      const text =
+        '{' +
+        response.content
+          .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+          .map((block) => block.text)
+          .join('')
+
+      return parseLLMResponse(text)
+    },
   }
 }
 

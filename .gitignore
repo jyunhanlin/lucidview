@@ -4,5 +4,13 @@ dist/
 coverage/
 .vinxi/
 .output/
-.env
+.tanstack/
 *.tsbuildinfo
+.DS_Store
+*.log
+
+# env files (keep .env and .env.example committed)
+.env.local
+.env.production
+.env.development
+.env*.local

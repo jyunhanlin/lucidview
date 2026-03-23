@@ -30,6 +30,7 @@
   },
   "homepage": "https://github.com/jyunhanlin/lucidview#readme",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@google/generative-ai": "^0.24.1",
     "@tanstack/react-router": "^1.167.3",
     "@tanstack/react-start": "^1.166.14",
